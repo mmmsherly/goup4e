@@ -1,0 +1,49 @@
+setwd('C:\\Users\\metl029\\Desktop\\New folder')
+data=read.csv('Reviews.csv',header=TRUE)
+myText=data$text
+myContinuousValue = 'rating'
+k=10
+customStopWords = c('Bonnets', 'Broadband', 'bonnets', 'broadband','I','me','my','in','on','have','we','to','told','said','told','charged','get','will','can','month','just','going','say','one','days','since','new')
+packages <- c("stm", "Rtsne", "geometry", "RColorBrewer", "tm", "wordcloud")
+new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
+packages <- c("stm", "Rtsne", "geometry", "RColorBrewer", "tm", "wordcloud")
+new.packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
+library(stm)
+library(Rtsne)
+library(geometry)
+library(RColorBrewer)
+library(tm)
+library(wordcloud)
+
+processed <- textProcessor(documents=myText, metadata = data, customstopwords = customStopWords, stem = FALSE, striphtml = TRUE)
+out <- prepDocuments(processed$documents, processed$vocab, processed$meta)
+
+docs <- out$documents
+vocab <- out$vocab
+meta <-out$meta
+
+result <- stm(docs, vocab, K = k, prevalence=~ s(eval(as.name(myContinuousValue))), init.type = "LDA", data=meta)
+plot(result)
+labelTopics(result, topics = NULL, n = 7, frexweight = 0.5)
+
+pdf("topic_cloud.pdf")
+for (i in 1:k){
+  cloud(result, topic = i, max.words = 50, random.color = TRUE, colors = brewer.pal(6,"Dark2"))
+  title(paste("Topic ", i))
+}
+dev.off()
+
+regress <- estimateEffect(c(1:k) ~ s(rating), result, metadata = meta)
+# print a regression of topic to sentiment
+
+for (i in c(1:k)) {
+	x = i
+	title = paste("trend_topic_",x,".jpg", sep="")
+	jpeg(title)
+	plot(regress, "rating", method = "continuous", topics = x, model = result, ci.level = 0, printlegend = FALSE, xlab = "Rating")
+}
+dev.off()
